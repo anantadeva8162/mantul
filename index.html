@@ -89,6 +89,17 @@
       margin: 14px 0 4px;
     }
 
+    .preview {
+      width: min(100%, 270px);
+      aspect-ratio: 4 / 3;
+      border: 1px solid rgba(32, 37, 31, .1);
+      border-radius: 24px;
+      background: #e9ecdf;
+      object-fit: cover;
+      box-shadow: 0 12px 26px rgba(48, 48, 35, .12);
+    }
+    #cameraPreview { transform: scaleX(-1); }
+
     .mascot {
       position: relative;
       width: 126px;
@@ -148,6 +159,14 @@
       color: var(--muted);
       font-size: 15px;
       line-height: 1.65;
+    }
+
+    .status {
+      min-height: 22px;
+      margin: 12px auto 0;
+      color: #65705a;
+      font-size: 12px;
+      line-height: 1.5;
     }
 
     .timer-row {
@@ -250,81 +269,207 @@
     <section class="card" id="card" aria-labelledby="title">
       <span class="eyebrow">Mampir sebentar</span>
 
-      <div class="mascot-wrap" aria-hidden="true">
-        <div class="mascot">
+      <div class="mascot-wrap">
+        <div class="mascot" id="mascot" aria-hidden="true">
           <span class="smile"></span>
           <span class="spark one">✳</span>
           <span class="spark two">✦</span>
         </div>
+        <video class="preview" id="cameraPreview" autoplay playsinline muted hidden aria-label="Pratinjau kamera depan"></video>
+        <img class="preview" id="capturedPhoto" alt="Foto yang baru diambil" hidden>
       </div>
 
-      <h1 id="title">Kamu akan memantul keluar.</h1>
-      <p class="description" id="description">Halaman ini akan mencoba menutup tab dalam beberapa detik. Tenang, hitung mundurnya terlihat.</p>
+      <h1 id="title">Satu foto, lalu memantul.</h1>
+      <p class="description" id="description">Tekan tombol untuk meminta izin kamera depan. Setelah kamu menyetujui izin, foto diambil dengan hitung mundur yang terlihat.</p>
+      <p class="status" id="status" aria-live="polite">Foto hanya diproses di halaman ini dan tidak diunggah.</p>
 
-      <div class="timer-row" id="timerRow" aria-live="polite">
+      <div class="timer-row" id="timerRow" aria-live="polite" hidden>
         <span class="timer" id="timer">5</span>
-        <span id="timerLabel">detik sebelum memantul</span>
+        <span id="timerLabel">detik sebelum foto</span>
       </div>
 
       <div class="actions" id="actions">
-        <button type="button" id="cancelButton">Batalkan, saya mau tinggal</button>
-        <button type="button" class="secondary" id="closeNowButton">Tutup sekarang</button>
+        <button type="button" id="startButton">Izinkan kamera &amp; mulai</button>
+        <button type="button" class="secondary" id="cancelButton" hidden>Batalkan pengambilan</button>
+        <button type="button" class="secondary" id="saveButton" hidden>Simpan foto ke perangkat</button>
+        <button type="button" class="secondary" id="retakeButton" hidden>Ambil foto lagi</button>
+        <button type="button" class="secondary" id="keepButton" hidden>Batalkan penutupan otomatis</button>
+        <button type="button" class="secondary" id="closeNowButton" hidden>Tutup sekarang</button>
       </div>
 
-      <p class="footnote" id="footnote">Tidak ada suara atau pengalihan halaman. Kamu bisa membatalkan kapan saja.</p>
+      <p class="footnote" id="footnote">Kamera baru diminta setelah tombol ditekan. Kamu bisa membatalkan sebelum foto diambil.</p>
     </section>
   </main>
+  <canvas id="captureCanvas" hidden></canvas>
 
   <script>
     (() => {
       const card = document.getElementById("card");
       const title = document.getElementById("title");
       const description = document.getElementById("description");
+      const status = document.getElementById("status");
       const timer = document.getElementById("timer");
       const timerRow = document.getElementById("timerRow");
       const timerLabel = document.getElementById("timerLabel");
-      const actions = document.getElementById("actions");
       const footnote = document.getElementById("footnote");
+      const mascot = document.getElementById("mascot");
+      const video = document.getElementById("cameraPreview");
+      const photo = document.getElementById("capturedPhoto");
+      const canvas = document.getElementById("captureCanvas");
+      const startButton = document.getElementById("startButton");
       const cancelButton = document.getElementById("cancelButton");
+      const saveButton = document.getElementById("saveButton");
+      const retakeButton = document.getElementById("retakeButton");
+      const keepButton = document.getElementById("keepButton");
       const closeNowButton = document.getElementById("closeNowButton");
-      let remaining = 5;
-      let countdown;
-      let finished = false;
+      let stream = null;
+      let countdown = null;
+      let closeCountdown = null;
+      let imageData = null;
+      let phase = "idle";
 
-      function cancelCountdown() {
-        if (finished) return;
-        finished = true;
+      function stopCamera() {
+        if (stream) {
+          stream.getTracks().forEach((track) => track.stop());
+          stream = null;
+        }
+        video.srcObject = null;
+      }
+
+      function showIdle(message) {
         window.clearInterval(countdown);
-        card.classList.remove("bounce-away");
-        card.classList.add("return");
-        title.textContent = "Oke, kamu boleh tinggal.";
-        description.textContent = "Halaman ini tidak akan menutup dirinya. Terima kasih sudah mampir.";
+        window.clearInterval(closeCountdown);
+        stopCamera();
+        imageData = null;
+        phase = "idle";
+        photo.removeAttribute("src");
+        photo.hidden = true;
+        video.hidden = true;
+        mascot.hidden = false;
         timerRow.hidden = true;
-        actions.hidden = true;
-        footnote.textContent = "Kalau ingin pergi, tutup tab ini kapan saja.";
+        startButton.hidden = false;
+        startButton.disabled = false;
+        cancelButton.hidden = true;
+        saveButton.hidden = true;
+        retakeButton.hidden = true;
+        keepButton.hidden = true;
+        closeNowButton.hidden = true;
+        title.textContent = "Satu foto, lalu memantul.";
+        description.textContent = "Tekan tombol untuk meminta izin kamera depan. Setelah kamu menyetujui izin, foto diambil dengan hitung mundur yang terlihat.";
+        status.textContent = message || "Foto hanya diproses di halaman ini dan tidak diunggah.";
+        footnote.textContent = "Kamera baru diminta setelah tombol ditekan. Kamu bisa membatalkan sebelum foto diambil.";
+      }
+
+      function takePhoto() {
+        if (!video.videoWidth || !video.videoHeight) {
+          status.textContent = "Kamera belum siap. Tunggu sebentar lalu coba lagi.";
+          return;
+        }
+        canvas.width = video.videoWidth;
+        canvas.height = video.videoHeight;
+        const context = canvas.getContext("2d");
+        context.translate(canvas.width, 0);
+        context.scale(-1, 1);
+        context.drawImage(video, 0, 0, canvas.width, canvas.height);
+        imageData = canvas.toDataURL("image/jpeg", 0.92);
+        photo.src = imageData;
+        photo.hidden = false;
+        video.hidden = true;
+        stopCamera();
+        phase = "captured";
+        cancelButton.hidden = true;
+        saveButton.hidden = false;
+        retakeButton.hidden = false;
+        keepButton.hidden = false;
+        closeNowButton.hidden = true;
+        timerLabel.textContent = "detik sebelum halaman memantul";
+        status.textContent = "Foto diambil dan hanya tersimpan sementara di halaman ini. Tidak ada unggahan.";
+        footnote.textContent = "Tekan “Simpan foto” jika ingin menyimpan salinan sebelum tab menutup.";
+        startCloseCountdown();
+      }
+
+      function startCloseCountdown() {
+        let remaining = 5;
+        timerRow.hidden = false;
+        timer.textContent = String(remaining);
+        closeCountdown = window.setInterval(() => {
+          remaining -= 1;
+          timer.textContent = String(Math.max(remaining, 0));
+          if (remaining <= 0) tryClose();
+        }, 1000);
+      }
+
+      function requestCamera() {
+        if (phase !== "idle") return;
+        if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+          status.textContent = "Kamera perlu halaman yang dibuka lewat HTTPS atau localhost pada browser yang mendukung kamera.";
+          return;
+        }
+        phase = "requesting";
+        startButton.disabled = true;
+        status.textContent = "Meminta izin kamera depan dari browser…";
+        navigator.mediaDevices.getUserMedia({ audio: false, video: { facingMode: { exact: "user" } } })
+          .then((cameraStream) => {
+            stream = cameraStream;
+            video.srcObject = stream;
+            video.hidden = false;
+            mascot.hidden = true;
+            startButton.hidden = true;
+            startButton.disabled = false;
+            cancelButton.hidden = false;
+            phase = "countdown";
+            let remaining = 3;
+            timer.textContent = String(remaining);
+            timerLabel.textContent = "detik sebelum foto";
+            timerRow.hidden = false;
+            status.textContent = "Kamera aktif. Foto akan diambil saat hitung mundur selesai.";
+            countdown = window.setInterval(() => {
+              remaining -= 1;
+              timer.textContent = String(Math.max(remaining, 0));
+              if (remaining <= 0) {
+                window.clearInterval(countdown);
+                takePhoto();
+              }
+            }, 1000);
+          })
+          .catch(() => {
+            phase = "idle";
+            startButton.disabled = false;
+            status.textContent = "Kamera tidak aktif. Periksa izin kamera browser, lalu coba lagi jika kamu mau.";
+          });
       }
 
       function tryClose() {
-        if (finished) return;
-        finished = true;
-        window.clearInterval(countdown);
+        if (phase !== "captured" && phase !== "blocked" && phase !== "ready") return;
+        window.clearInterval(closeCountdown);
+        phase = "closing";
         title.textContent = "Dadah!";
         description.textContent = "Satu pantulan kecil, lalu halaman ini mencoba menutup tab.";
+        status.textContent = "";
         timerRow.hidden = true;
-        actions.hidden = true;
+        startButton.hidden = true;
+        cancelButton.hidden = true;
+        saveButton.hidden = true;
+        retakeButton.hidden = true;
+        keepButton.hidden = true;
+        closeNowButton.hidden = true;
         footnote.textContent = "";
+        card.classList.remove("return");
         card.classList.add("bounce-away");
 
         window.setTimeout(() => {
           window.close();
           window.setTimeout(() => {
+            phase = "blocked";
             title.textContent = "Browser menahan pantulannya.";
             description.textContent = "Browser biasanya hanya mengizinkan tab yang dibuka oleh skrip untuk menutup otomatis.";
             card.classList.remove("bounce-away");
             card.classList.add("return");
+            status.textContent = "Foto tetap hanya ada di halaman ini. Simpan jika ingin menyimpannya.";
             timerRow.hidden = true;
-            actions.hidden = false;
-            cancelButton.hidden = true;
+            saveButton.hidden = false;
+            retakeButton.hidden = false;
+            closeNowButton.hidden = false;
             closeNowButton.textContent = "Coba tutup tab lagi";
             footnote.textContent = "Jika tab tetap terbuka, tutup seperti biasa lewat tombol × atau pintasan keyboard browser.";
             closeNowButton.focus();
@@ -332,13 +477,35 @@
         }, 700);
       }
 
-      cancelButton.addEventListener("click", cancelCountdown);
+      function keepPageOpen() {
+        if (phase !== "captured") return;
+        window.clearInterval(closeCountdown);
+        phase = "ready";
+        timerRow.hidden = true;
+        keepButton.hidden = true;
+        closeNowButton.hidden = false;
+        closeNowButton.textContent = "Tutup sekarang";
+        title.textContent = "Foto sudah diambil.";
+        description.textContent = "Kamu bisa menyimpan foto atau mengambil ulang. Halaman akan tetap terbuka.";
+        status.textContent = "Foto tidak diunggah dan akan hilang saat halaman ditutup.";
+        footnote.textContent = "Pilih “Simpan foto” untuk mengunduh salinan ke perangkat.";
+      }
+
+      function downloadPhoto() {
+        if (!imageData) return;
+        const link = document.createElement("a");
+        link.href = imageData;
+        link.download = "foto-kamera-depan.jpg";
+        link.click();
+      }
+
+      startButton.addEventListener("click", requestCamera);
+      cancelButton.addEventListener("click", () => showIdle("Pengambilan foto dibatalkan. Kamera sudah dimatikan."));
+      saveButton.addEventListener("click", downloadPhoto);
+      retakeButton.addEventListener("click", () => showIdle("Foto sebelumnya dihapus dari halaman. Tekan tombol untuk mengambil ulang."));
+      keepButton.addEventListener("click", keepPageOpen);
       closeNowButton.addEventListener("click", tryClose);
-      countdown = window.setInterval(() => {
-        remaining -= 1;
-        timer.textContent = String(remaining);
-        if (remaining <= 0) tryClose();
-      }, 1000);
+      window.addEventListener("pagehide", stopCamera);
     })();
   </script>
 </body>
