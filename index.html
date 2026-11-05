@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f5f1e8">
+  <title>Mampir Sebentar</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --ink: #20251f;
+      --muted: #73796e;
+      --paper: #f5f1e8;
+      --card: #fffdf8;
+      --green: #b9f276;
+      --line: #e5e1d7;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      min-height: 100vh;
+      margin: 0;
+      display: grid;
+      place-items: center;
+      overflow: hidden;
+      padding: 24px;
+      background:
+        radial-gradient(ellipse at 14% 20%, rgba(223, 232, 201, .72), transparent 27%),
+        radial-gradient(ellipse at 86% 78%, rgba(230, 212, 187, .55), transparent 28%),
+        var(--paper);
+      color: var(--ink);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    .grain {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      opacity: .12;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 180 180' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.88' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.15'/%3E%3C/svg%3E");
+    }
+
+    main {
+      width: min(100%, 520px);
+      position: relative;
+      z-index: 1;
+    }
+
+    .card {
+      position: relative;
+      overflow: hidden;
+      padding: clamp(30px, 7vw, 54px);
+      border: 1px solid rgba(32, 37, 31, .08);
+      border-radius: 30px;
+      background: var(--card);
+      box-shadow: 0 24px 80px rgba(48, 48, 35, .12), 0 3px 10px rgba(48, 48, 35, .05);
+      text-align: center;
+      transform-origin: 50% 55%;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      color: #596150;
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    .eyebrow::before {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      background: #7ebd45;
+      content: "";
+      box-shadow: 0 0 0 3px rgba(126, 189, 69, .16);
+    }
+
+    .mascot-wrap {
+      height: 166px;
+      display: grid;
+      place-items: center;
+      margin: 14px 0 4px;
+    }
+
+    .mascot {
+      position: relative;
+      width: 126px;
+      height: 126px;
+      display: grid;
+      place-items: center;
+      border: 1px solid rgba(32, 37, 31, .1);
+      border-radius: 41% 59% 56% 44% / 49% 44% 56% 51%;
+      background: var(--green);
+      box-shadow: 0 14px 24px rgba(113, 145, 74, .2), inset -8px -9px 0 rgba(73, 110, 40, .08);
+      animation: bob 2.4s ease-in-out infinite;
+    }
+
+    .mascot::before, .mascot::after {
+      position: absolute;
+      top: 48px;
+      width: 9px;
+      height: 13px;
+      border-radius: 99px;
+      background: var(--ink);
+      content: "";
+    }
+    .mascot::before { left: 39px; }
+    .mascot::after { right: 39px; }
+
+    .smile {
+      position: absolute;
+      top: 65px;
+      left: 50%;
+      width: 18px;
+      height: 9px;
+      border-bottom: 2px solid var(--ink);
+      border-radius: 0 0 50% 50%;
+      transform: translateX(-50%);
+    }
+
+    .spark {
+      position: absolute;
+      color: #d89752;
+      font-size: 23px;
+      animation: twinkle 1.8s ease-in-out infinite;
+    }
+    .spark.one { top: 16px; right: -28px; }
+    .spark.two { bottom: 13px; left: -30px; font-size: 16px; animation-delay: .7s; }
+
+    h1 {
+      max-width: 390px;
+      margin: 10px auto 12px;
+      font-size: clamp(34px, 8vw, 53px);
+      line-height: .99;
+      letter-spacing: -.065em;
+    }
+
+    .description {
+      max-width: 350px;
+      margin: 0 auto;
+      color: var(--muted);
+      font-size: 15px;
+      line-height: 1.65;
+    }
+
+    .timer-row {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin: 24px 0 19px;
+      color: #566048;
+      font-size: 13px;
+      font-weight: 650;
+    }
+
+    .timer {
+      min-width: 32px;
+      height: 32px;
+      display: grid;
+      place-items: center;
+      border-radius: 11px;
+      background: #eff5e6;
+      color: #4e762d;
+      font-size: 15px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .actions { display: grid; gap: 10px; }
+
+    button {
+      min-height: 50px;
+      padding: 12px 18px;
+      border: 0;
+      border-radius: 15px;
+      background: var(--ink);
+      color: white;
+      font: inherit;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+    }
+    button:hover { transform: translateY(-2px); box-shadow: 0 8px 20px rgba(32, 37, 31, .16); }
+    button:focus-visible { outline: 3px solid #84bb4e; outline-offset: 3px; }
+
+    .secondary {
+      background: transparent;
+      color: #586052;
+    }
+    .secondary:hover { background: #f1f0e9; box-shadow: none; }
+
+    .footnote {
+      margin: 20px 0 0;
+      color: #95988e;
+      font-size: 11px;
+      line-height: 1.5;
+    }
+
+    .card.bounce-away { animation: bounce-away .68s cubic-bezier(.55, -.2, .8, .3) forwards; }
+    .card.return { animation: return .5s cubic-bezier(.2, .8, .2, 1) both; }
+    [hidden] { display: none !important; }
+
+    @keyframes bob {
+      0%, 100% { transform: translateY(0) rotate(-3deg); }
+      50% { transform: translateY(-10px) rotate(3deg); }
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: .45; transform: scale(.8) rotate(-10deg); }
+      50% { opacity: 1; transform: scale(1.12) rotate(12deg); }
+    }
+    @keyframes bounce-away {
+      0% { opacity: 1; transform: translateY(0) rotate(0) scale(1); }
+      24% { opacity: 1; transform: translateY(-34px) rotate(-5deg) scale(1.04); }
+      100% { opacity: 0; transform: translate(115vw, -85vh) rotate(28deg) scale(.24); }
+    }
+    @keyframes return {
+      0% { opacity: 0; transform: translate(-9vw, 8vh) rotate(-9deg) scale(.9); }
+      68% { opacity: 1; transform: translate(10px, -8px) rotate(2deg) scale(1.01); }
+      100% { opacity: 1; transform: translate(0) rotate(0) scale(1); }
+    }
+
+    @media (max-width: 480px) {
+      body { padding: 16px; }
+      .card { border-radius: 24px; }
+      .mascot-wrap { height: 142px; }
+      .mascot { width: 108px; height: 108px; }
+      .mascot::before, .mascot::after { top: 41px; }
+      .mascot::before { left: 33px; }
+      .mascot::after { right: 33px; }
+      .smile { top: 57px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; scroll-behavior: auto !important; }
+      button { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <main>
+    <section class="card" id="card" aria-labelledby="title">
+      <span class="eyebrow">Mampir sebentar</span>
+
+      <div class="mascot-wrap" aria-hidden="true">
+        <div class="mascot">
+          <span class="smile"></span>
+          <span class="spark one">✳</span>
+          <span class="spark two">✦</span>
+        </div>
+      </div>
+
+      <h1 id="title">Kamu akan memantul keluar.</h1>
+      <p class="description" id="description">Halaman ini akan mencoba menutup tab dalam beberapa detik. Tenang, hitung mundurnya terlihat.</p>
+
+      <div class="timer-row" id="timerRow" aria-live="polite">
+        <span class="timer" id="timer">5</span>
+        <span id="timerLabel">detik sebelum memantul</span>
+      </div>
+
+      <div class="actions" id="actions">
+        <button type="button" id="cancelButton">Batalkan, saya mau tinggal</button>
+        <button type="button" class="secondary" id="closeNowButton">Tutup sekarang</button>
+      </div>
+
+      <p class="footnote" id="footnote">Tidak ada suara atau pengalihan halaman. Kamu bisa membatalkan kapan saja.</p>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const card = document.getElementById("card");
+      const title = document.getElementById("title");
+      const description = document.getElementById("description");
+      const timer = document.getElementById("timer");
+      const timerRow = document.getElementById("timerRow");
+      const timerLabel = document.getElementById("timerLabel");
+      const actions = document.getElementById("actions");
+      const footnote = document.getElementById("footnote");
+      const cancelButton = document.getElementById("cancelButton");
+      const closeNowButton = document.getElementById("closeNowButton");
+      let remaining = 5;
+      let countdown;
+      let finished = false;
+
+      function cancelCountdown() {
+        if (finished) return;
+        finished = true;
+        window.clearInterval(countdown);
+        card.classList.remove("bounce-away");
+        card.classList.add("return");
+        title.textContent = "Oke, kamu boleh tinggal.";
+        description.textContent = "Halaman ini tidak akan menutup dirinya. Terima kasih sudah mampir.";
+        timerRow.hidden = true;
+        actions.hidden = true;
+        footnote.textContent = "Kalau ingin pergi, tutup tab ini kapan saja.";
+      }
+
+      function tryClose() {
+        if (finished) return;
+        finished = true;
+        window.clearInterval(countdown);
+        title.textContent = "Dadah!";
+        description.textContent = "Satu pantulan kecil, lalu halaman ini mencoba menutup tab.";
+        timerRow.hidden = true;
+        actions.hidden = true;
+        footnote.textContent = "";
+        card.classList.add("bounce-away");
+
+        window.setTimeout(() => {
+          window.close();
+          window.setTimeout(() => {
+            title.textContent = "Browser menahan pantulannya.";
+            description.textContent = "Browser biasanya hanya mengizinkan tab yang dibuka oleh skrip untuk menutup otomatis.";
+            card.classList.remove("bounce-away");
+            card.classList.add("return");
+            timerRow.hidden = true;
+            actions.hidden = false;
+            cancelButton.hidden = true;
+            closeNowButton.textContent = "Coba tutup tab lagi";
+            footnote.textContent = "Jika tab tetap terbuka, tutup seperti biasa lewat tombol × atau pintasan keyboard browser.";
+            closeNowButton.focus();
+          }, 350);
+        }, 700);
+      }
+
+      cancelButton.addEventListener("click", cancelCountdown);
+      closeNowButton.addEventListener("click", tryClose);
+      countdown = window.setInterval(() => {
+        remaining -= 1;
+        timer.textContent = String(remaining);
+        if (remaining <= 0) tryClose();
+      }, 1000);
+    })();
+  </script>
+</body>
+</html>
